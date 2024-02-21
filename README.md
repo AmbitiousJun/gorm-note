@@ -4,7 +4,7 @@
 > 
 > 仓库地址：https://github.com/AmbitiousJun/gorm-note
 
-## 安装 & 快速入门
+## 安装 & 快速入门 (QuickStart)
 
 ### 安装
 
@@ -206,3 +206,210 @@ func main() {
 ![](assets/2024-02-21-11-29-42-image.png)
 
 ![](assets/2024-02-21-11-30-10-image.png)
+
+
+
+## 模型定义 (Declaring Models)
+
+在 Go 语言中，可以用结构体 (struct) 来定义模型，下面是一个 `User` 模型示例：
+
+```go
+type User struct {
+  ID           uint           // Standard field for the primary key
+  Name         string         // A regular string field
+  Email        *string        // A pointer to a string, allowing for null values
+  Age          uint8          // An unsigned 8-bit integer
+  Birthday     *time.Time     // A pointer to time.Time, can be null
+  MemberNumber sql.NullString // Uses sql.NullString to handle nullable strings
+  ActivatedAt  sql.NullTime   // Uses sql.NullTime for nullable time fields
+  CreatedAt    time.Time      // Automatically managed by GORM for creation time
+  UpdatedAt    time.Time      // Automatically managed by GORM for update time
+}
+```
+
+`User` 模型中，不同的属性使用了不同的类型进行存储，不同类型的含义如下：
+
+- `uint`, `string`, `uint8` 等**基础类型**直接使用即可，无特殊含义
+
+- `*string`, `*time.Time` 等**指针类型**也是支持的，表示该字段可以为空
+
+- `sql.NullString`, `sql.NullTime` 类型（位于 database/sql 包下）也是用于表示可以为空的字段，并且提供了一些额外的特性
+
+- `CreatedAt` 和 `UpdatedAt` 是 gorm 默认的特殊字段，用于在记录创建和更新的时候自动生成当前的时间
+
+
+
+### 特殊字段
+
+gorm 默认指定了一些具有特殊功能的字段，上文所说的 `CreatedAt` 和 `UpdatedAt` 字段就是其中之一
+
+如果能够遵循 gorm 默认的规定进行开发，就可以省去很多的自定义配置工作，下面是对特殊字段及其功能的总结：
+
+1. **主键**：对于每个模型，gorm 将名称为 `ID` 的字段认为是默认的主键
+
+2. **表名**：在 Go 中，结构体通常定义为**大写驼峰**形式，gorm 在将结构体转换成表结构时，会自动将其转换为**小写下划线**格式，并且会携带复数形式。例如：结构体 `User` 映射到数据库表会变成 `users`
+
+3. **字段名**：跟表名一致的规则
+
+4. **时间戳字段**：默认情况下，只要结构体包含属性 `CreatedAt` 或者 `UpdatedAt` ，gorm 就会自动在记录创建或者更新时自动设置这两个字段为当前时间
+
+
+
+### 基础模型
+
+gorm 预定义了一个导出的结构体 `gorm.Model` ，包含一些通用的属性
+
+```go
+// gorm.Model definition
+type Model struct {
+    ID        uint           `gorm:"primaryKey"`
+    CreatedAt time.Time
+    UpdatedAt time.Time
+    DeletedAt gorm.DeletedAt `gorm:"index"`
+}
+```
+
+这个结构体中的属性都是具有特殊功能的，可以直接将其**嵌入**到自定义结构体中使用
+
+```go
+type Product struct{
+    gorm.Model
+    Price uint
+    Code  string
+}
+```
+
+> Go 语言不能像其他语言一样通过继承来扩展类的功能，官方更推荐的做法是将要扩展的结构体**组合**到新结构体下，作为一个匿名的属性，对应到这里所说的嵌入
+
+
+
+### 属性级别的权限控制
+
+默认情况下，gorm 拥有对结构体中的导出属性操作的所有权限，可以通过指定的 tag 来限制这个权限
+
+> 注：这里的权限限制的是 gorm 框架，而不是操作数据库的用户
+
+这里先简单贴出官方的示例结构体代码，详细的 tag 含义看之后的表格总结
+
+```go
+type User struct {
+    Name string `gorm:"<-:create"`          // allow read and create
+    Name string `gorm:"<-:update"`          // allow read and update
+    Name string `gorm:"<-"`                 // allow read and write (create and update)
+    Name string `gorm:"<-:false"`           // allow read, disable write permission
+    Name string `gorm:"->"`                 // readonly (disable write permission unless it configured)
+    Name string `gorm:"->;<-:create"`       // allow read and create
+    Name string `gorm:"->:false;<-:create"` // createonly (disabled read from db)
+    Name string `gorm:"-"`                  // ignore this field when write and read with struct
+    Name string `gorm:"-:all"`              // ignore this field when write, read and migrate with struct
+    Name string `gorm:"-:migration"`        // ignore this field when migrate with struct
+}
+```
+
+
+
+### 嵌入结构体
+
+有时候会出现在一个结构体中嵌入另一个自定义结构体的情况，但是数据都在同一张表上，并没有层级关系，这时就可以指明属性是嵌入结构体，这样子结构体在映射到数据库的时候就会被 “展开”。
+
+#### 匿名子结构体
+
+gorm 会自动将匿名子结构体认为是嵌入结构体，无需额外设置：
+
+```go
+type User struct {
+  gorm.Model
+  Name string
+}
+
+// equals
+type User struct {
+  ID        uint           `gorm:"primaryKey"`
+  CreatedAt time.Time
+  UpdatedAt time.Time
+  DeletedAt gorm.DeletedAt `gorm:"index"`
+  Name string
+}
+```
+
+#### 具名子结构体
+
+可以通过 `embedded` tag 将一个具名子结构体指定为嵌入结构体：
+
+```go
+type Author struct{
+    Name  string
+    Email string
+}
+
+
+type Blog struct{
+    ID      int
+    Author  Author `gorm:"embedded"`
+    Upvotes int32
+}
+
+// equals
+type Blog struct{
+    ID      int64
+    Name    string
+    Email   string
+    Upvotes int32
+}
+```
+
+#### 嵌入前缀
+
+可以给嵌入结构体指定一个嵌入前缀，用于在数据库表中区分层级关系：
+
+```go
+type Author struct{
+    Name  string
+    Email string
+}
+
+
+type Blog struct{
+    ID      int
+    Author  Author `gorm:"embedded;embeddedPrefix:author_"`
+    Upvotes int32
+}
+
+// equals
+type Blog struct{
+    ID            int64
+    AuthorName    string
+    AuthorEmail   string
+    Upvotes       int32
+}
+```
+
+#### 属性 tag 汇总
+
+| tag 名称                 | 描述                                                                                            |
+| ---------------------- | --------------------------------------------------------------------------------------------- |
+| column                 | 自定义属性对应到数据库的名称                                                                                |
+| type                   | 列的数据库类型，可指定多个，用空格分隔开。类似于数据库定义表结构的语句，例如：`MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT`           |
+| serializer             | 指定序列化器，用于将数据序列化到数据库中。例如：`serializer:json/gob/unixtime`                                        |
+| size                   | 指定列大小。例如：`size:256`                                                                           |
+| primaryKey             | 指定列为主键                                                                                        |
+| unique                 | 指定列唯一                                                                                         |
+| default                | 指定列的默认值                                                                                       |
+| precision              | 指定列的精度                                                                                        |
+| scale                  | 指定列的规模                                                                                        |
+| not null               | 指定列不为空                                                                                        |
+| autoIncrement          | 指定列自增                                                                                         |
+| autoIncrementIncrement | 指定列跳步自增                                                                                       |
+| embedded               | 指定属性为嵌入结构体                                                                                    |
+| embeddedPrefix         | 嵌入结构体的列名前缀                                                                                    |
+| autoCreateTime         | 指定列值为记录的创建时间，如果是 `int` 类型的字段，自动转换为 unix 时间戳，也可以自定义为 `nano/milli` 时间戳。例如：`autoCreateTime:nano` |
+| autoUpdateTime         | 自定列值为记录的更新时间，特性与 `autoCreateTime` 一致                                                          |
+| index                  | 创建索引                                                                                          |
+| uniqueIndex            | 创建唯一索引                                                                                        |
+| check                  | 创建约束。例如：`check:age > 13`                                                                      |
+| <-                     | 设置列的`写`权限。`<-:create` 为只创建，`<-:update` 为只更新，`<-:false` 无写权限，`<-` 创建和更新权限                      |
+| ->                     | 设置列的`读`权限。`->:false` 无读权限                                                                     |
+| -                      | 忽略当前列。`-` 无读写权限，`-:migration` 无自动创建权限，`-:all` 无读写、自动创建权限                                      |
+| comment                | 在自动创建表时给列增加注释                                                                                 |
+
+
