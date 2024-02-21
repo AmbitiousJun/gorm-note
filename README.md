@@ -318,17 +318,17 @@ gorm 会自动将匿名子结构体认为是嵌入结构体，无需额外设置
 
 ```go
 type User struct {
-  gorm.Model
-  Name string
+    gorm.Model
+    Name string
 }
 
 // equals
 type User struct {
-  ID        uint           `gorm:"primaryKey"`
-  CreatedAt time.Time
-  UpdatedAt time.Time
-  DeletedAt gorm.DeletedAt `gorm:"index"`
-  Name string
+    ID        uint           `gorm:"primaryKey"`
+    CreatedAt time.Time
+    UpdatedAt time.Time
+    DeletedAt gorm.DeletedAt `gorm:"index"`
+    Name      string
 }
 ```
 
