@@ -4,11 +4,7 @@
 > 
 > 仓库地址：https://github.com/AmbitiousJun/gorm-note
 
-
-
 ## 安装 & 快速入门
-
-
 
 ### 安装
 
@@ -23,8 +19,6 @@ go get -u gorm.io/gorm
 go get -u gorm.io/driver/mysql
 ```
 
-
-
 在编写程序之前，需要先创建一个 mysql 数据库，这里命名为 `gorm-learn`
 
 ![](assets/2024-02-21-10-32-25-image.png)
@@ -32,8 +26,6 @@ go get -u gorm.io/driver/mysql
 无需创建表，gorm 提供了 API 可以方便地根据实体类生成相对应的表结构
 
 接下来就是编写程序连接 mysql 进行增删改查操作了，首先建好一个 main.go 文件，写好一个空的 main 函数
-
-
 
 ### 连接
 
@@ -49,11 +41,9 @@ go get -u gorm.io/driver/mysql
 // 1 初始化数据库
 db, err := gorm.Open(mysql.Open("root:123456@tcp(127.0.0.1:3306)/gorm-learn?charset=utf8mb4&parseTime=True&loc=Local"), &gorm.Config{})
 if err != nil {
-	log.Fatalln("failed to connect database")
+    log.Fatalln("failed to connect database")
 }
 ```
-
-
 
 ### 自动生成表结构
 
@@ -61,15 +51,13 @@ if err != nil {
 
 ```go
 type Product struct {
-	gorm.Model
-	Code  string
-	Price uint
+    gorm.Model
+    Code  string
+    Price uint
 }
 ```
 
 gorm 提供了一个基础的结构体 `gorm.Model` ，包含了主键 (ID)、创建时间 (CreateAt)、更新时间 (UpdateAt)、删除时间 (DeleteAt) 等信息，可以直接将其**组合**到自定义的结构体下
-
-
 
 调用 `db.AutoMigrate` 方法就可以很方便地创建表结构，表名是小写的结构体名称加上 s，例如现在这个结构体会自动生成 `products` 表
 
@@ -78,8 +66,6 @@ gorm 提供了一个基础的结构体 `gorm.Model` ，包含了主键 (ID)、�
 db.AutoMigrate(&Product{})
 ```
 
-
-
 ### 新增
 
 调用方法：`db.Create()`
@@ -87,8 +73,6 @@ db.AutoMigrate(&Product{})
 ```go
 db.Create(&Product{Code: "D42", Price: 100})
 ```
-
-
 
 ### 查询
 
@@ -108,8 +92,6 @@ log.Printf("根据主键 %d 查询到记录: %v\n", 1, product)
 db.First(&product, "code = ?", "D42")
 log.Printf("根据条件 %s 查询到记录: %v\n", "code = D42", product)
 ```
-
-
 
 ### 修改
 
@@ -140,8 +122,6 @@ db.First(&product, 1)
 log.Printf("使用 map 一次性修改多个字段: %v\n", product)
 ```
 
-
-
 ### 删除
 
 调用方法：`db.Delete()`
@@ -159,69 +139,66 @@ log.Printf("使用 map 一次性修改多个字段: %v\n", product)
 db.Delete(&product, 1)
 ```
 
-
-
 ### 完整代码
 
 ```go
 package main
 
 import (
-	"log"
+    "log"
 
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
+    "gorm.io/driver/mysql"
+    "gorm.io/gorm"
 )
 
 type Product struct {
-	gorm.Model
-	Code  string
-	Price uint
+    gorm.Model
+    Code  string
+    Price uint
 }
 
 func main() {
-	// 1 初始化数据库
-	db, err := gorm.Open(mysql.Open("root:123456@tcp(127.0.0.1:3306)/gorm-learn?charset=utf8mb4&parseTime=True&loc=Local"), &gorm.Config{})
-	if err != nil {
-		log.Fatalln("failed to connect database")
-	}
+    // 1 初始化数据库
+    db, err := gorm.Open(mysql.Open("root:123456@tcp(127.0.0.1:3306)/gorm-learn?charset=utf8mb4&parseTime=True&loc=Local"), &gorm.Config{})
+    if err != nil {
+        log.Fatalln("failed to connect database")
+    }
 
-	// 2 自动创建数据库
-	db.AutoMigrate(&Product{})
+    // 2 自动创建数据库
+    db.AutoMigrate(&Product{})
 
-	// 3 创建一条记录
-	db.Create(&Product{Code: "D42", Price: 100})
+    // 3 创建一条记录
+    db.Create(&Product{Code: "D42", Price: 100})
 
-	var product Product
-	// 4 根据主键查询数据
-	db.First(&product, 1)
-	log.Printf("根据主键 %d 查询到记录: %v\n", 1, product)
+    var product Product
+    // 4 根据主键查询数据
+    db.First(&product, 1)
+    log.Printf("根据主键 %d 查询到记录: %v\n", 1, product)
 
-	// 5 根据条件查询数据
-	db.First(&product, "code = ?", "D42")
-	log.Printf("根据条件 %s 查询到记录: %v\n", "code = D42", product)
+    // 5 根据条件查询数据
+    db.First(&product, "code = ?", "D42")
+    log.Printf("根据条件 %s 查询到记录: %v\n", "code = D42", product)
 
-	// 6 将当前记录的价格修改为 200
-	db.Model(&product).Update("Price", 200)
-	db.First(&product, 1)
-	log.Printf("将 Price 修改为 %d: %v\n", 200, product)
+    // 6 将当前记录的价格修改为 200
+    db.Model(&product).Update("Price", 200)
+    db.First(&product, 1)
+    log.Printf("将 Price 修改为 %d: %v\n", 200, product)
 
-	// 7 使用 struct 一次性修改多个字段
-	db.Model(&product).Updates(Product{Price: 300, Code: "F42"})
-	db.First(&product, 1)
-	log.Printf("使用 struct 一次性修改多个字段: %v\n", product)
+    // 7 使用 struct 一次性修改多个字段
+    db.Model(&product).Updates(Product{Price: 300, Code: "F42"})
+    db.First(&product, 1)
+    log.Printf("使用 struct 一次性修改多个字段: %v\n", product)
 
-	// 8 使用 map 一次性修改多个字段
-	db.Model(&product).Updates(map[string]interface{}{"Price": 400, "Code": "G42"})
-	db.First(&product, 1)
-	log.Printf("使用 map 一次性修改多个字段: %v\n", product)
+    // 8 使用 map 一次性修改多个字段
+    db.Model(&product).Updates(map[string]interface{}{"Price": 400, "Code": "G42"})
+    db.First(&product, 1)
+    log.Printf("使用 map 一次性修改多个字段: %v\n", product)
 
-	// 9 根据主键删除记录
-	db.Delete(&product, 1)
-	db.First(&product, 1)
-	log.Printf("删除记录后的查询结果: %v\n", product)
+    // 9 根据主键删除记录
+    db.Delete(&product, 1)
+    db.First(&product, 1)
+    log.Printf("删除记录后的查询结果: %v\n", product)
 }
-
 ```
 
 ### 运行结果
@@ -229,5 +206,3 @@ func main() {
 ![](assets/2024-02-21-11-29-42-image.png)
 
 ![](assets/2024-02-21-11-30-10-image.png)
-
-
