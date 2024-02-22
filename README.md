@@ -207,23 +207,21 @@ func main() {
 
 ![](assets/2024-02-21-11-30-10-image.png)
 
-
-
 ## 模型定义 (Declaring Models)
 
 在 Go 语言中，可以用结构体 (struct) 来定义模型，下面是一个 `User` 模型示例：
 
 ```go
 type User struct {
-  ID           uint           // Standard field for the primary key
-  Name         string         // A regular string field
-  Email        *string        // A pointer to a string, allowing for null values
-  Age          uint8          // An unsigned 8-bit integer
-  Birthday     *time.Time     // A pointer to time.Time, can be null
-  MemberNumber sql.NullString // Uses sql.NullString to handle nullable strings
-  ActivatedAt  sql.NullTime   // Uses sql.NullTime for nullable time fields
-  CreatedAt    time.Time      // Automatically managed by GORM for creation time
-  UpdatedAt    time.Time      // Automatically managed by GORM for update time
+    ID           uint           // Standard field for the primary key
+    Name         string         // A regular string field
+    Email        *string        // A pointer to a string, allowing for null values
+    Age          uint8          // An unsigned 8-bit integer
+    Birthday     *time.Time     // A pointer to time.Time, can be null
+    MemberNumber sql.NullString // Uses sql.NullString to handle nullable strings
+    ActivatedAt  sql.NullTime   // Uses sql.NullTime for nullable time fields
+    CreatedAt    time.Time      // Automatically managed by GORM for creation time
+    UpdatedAt    time.Time      // Automatically managed by GORM for update time
 }
 ```
 
@@ -236,8 +234,6 @@ type User struct {
 - `sql.NullString`, `sql.NullTime` 类型（位于 database/sql 包下）也是用于表示可以为空的字段，并且提供了一些额外的特性
 
 - `CreatedAt` 和 `UpdatedAt` 是 gorm 默认的特殊字段，用于在记录创建和更新的时候自动生成当前的时间
-
-
 
 ### 特殊字段
 
@@ -252,8 +248,6 @@ gorm 默认指定了一些具有特殊功能的字段，上文所说的 `Created
 3. **字段名**：跟表名一致的规则
 
 4. **时间戳字段**：默认情况下，只要结构体包含属性 `CreatedAt` 或者 `UpdatedAt` ，gorm 就会自动在记录创建或者更新时自动设置这两个字段为当前时间
-
-
 
 ### 基础模型
 
@@ -281,8 +275,6 @@ type Product struct{
 
 > Go 语言不能像其他语言一样通过继承来扩展类的功能，官方更推荐的做法是将要扩展的结构体**组合**到新结构体下，作为一个匿名的属性，对应到这里所说的嵌入
 
-
-
 ### 属性级别的权限控制
 
 默认情况下，gorm 拥有对结构体中的导出属性操作的所有权限，可以通过指定的 tag 来限制这个权限
@@ -305,8 +297,6 @@ type User struct {
     Name string `gorm:"-:migration"`        // ignore this field when migrate with struct
 }
 ```
-
-
 
 ### 嵌入结构体
 
@@ -411,5 +401,320 @@ type Blog struct{
 | ->                     | 设置列的`读`权限。`->:false` 无读权限                                                                     |
 | -                      | 忽略当前列。`-` 无读写权限，`-:migration` 无自动创建权限，`-:all` 无读写、自动创建权限                                      |
 | comment                | 在自动创建表时给列增加注释                                                                                 |
+
+## 增删改查
+
+> 为了避免在学习时编写过多的重复代码，从这里开始将获取数据库连接信息、模型定义部分代码提取到一个 `db` 包下，并利用 `sync.Once` 实现单次初始化，使用时直接调用 `db.DB()` 即可获取到数据库操作对象
+> 
+> ```go
+> // 统一的 database 管理
+> package db
+> 
+> import (
+>     "log"
+>     "sync"
+> 
+>     "gorm.io/driver/mysql"
+>     "gorm.io/gorm"
+> )
+> 
+> var db *gorm.DB
+> var initOnce sync.Once
+> 
+> func DB() *gorm.DB {
+>     initOnce.Do(func() {
+>         d, err := gorm.Open(mysql.Open("root:123456@tcp(127.0.0.1:3306)/gorm-learn?charset=utf8mb4&parseTime=True&loc=Local"))
+>         if err != nil {
+>             log.Fatal("failed to connect database")
+>         }
+>         db = d
+>     })
+>     return db
+> }
+> ```
+
+### 新增 (Create)
+
+> 相关模型定义：
+> 
+> ```go
+> type User struct {
+>     gorm.Model
+>     Name     string
+>     Age      int
+>     Birthday time.Time
+> }
+> func (u *User) String() string {
+>     return fmt.Sprintf(`
+>         User{
+>             ID: %v,
+>             CreatedAt: %v,
+>             UpdatedAt: %v,
+>             DeletedAt: %v,
+>             Name: %v,
+>             Age: %v,
+>             Birthday: %v
+>         }
+>     `, u.ID, u.CreatedAt, u.UpdatedAt, u.DeletedAt, u.Name, u.Age, u.Birthday)
+> }
+> ```
+
+#### 1. 新增单条记录
+
+调用方法：`Create()`
+
+描述：实例化一个模型结构体，将其指针传递给 `Create()` 即可，方法返回一个 `result` 对象，可以获取到操作数据库的影响行数和错误信息，同时，新记录的主键值也会被回写到模型实例中
+
+```go
+// 1 创建 user, 获取主键以及操作结果
+user := db.User{Name: "Jinzhu", Age: 18, Birthday: time.Now()}
+result := db.DB().Create(&user)
+log.Println("新增用户的 ID: ", user.ID)
+log.Println("新增时的错误: ", result.Error)
+log.Println("新增时的数据库影响行数: ", result.RowsAffected)
+```
+
+#### 2. 新增多条记录
+
+调用方法：`Create()`
+
+描述：实例化一个模型结构体切片，再将切片传递给 `Create()` 即可
+
+```go
+// 2 批量新增 user
+users := []*db.User{
+    {Name: "Jinzhu", Age: 18, Birthday: time.Now()},
+    {Name: "Jackson", Age: 19, Birthday: time.Now()},
+}
+result = db.DB().Create(users)
+ids := []string{}
+for _, user := range users {
+    ids = append(ids, fmt.Sprintf("%v", user.ID))
+}
+log.Printf("批量新增的用户 Id: %s", strings.Join(ids, ", "))
+log.Println("批量新增时的错误: ", result.Error)
+log.Println("批量新增时的数据库影响行数: ", result.RowsAffected)
+```
+
+#### 3. 指定插入特定的字段
+
+调用方法：`Select().Create()`
+
+描述：指定新增时要插入哪些字段值
+
+```go
+// 1 指定插入特定的字段
+// INSERT INTO `users` (`name`,`age`,`created_at`) VALUES ("jinzhu", 18, "2020-07-04 11:05:21.775")
+user := db.User{Name: "John", Age: 19, Birthday: time.Now()}
+result := d.Select("Name", "Age", "CreatedAt").Create(&user)
+log.Println("指定插入特定字段 => 错误信息: ", result.Error)
+log.Println("指定插入特定字段 => 影响行数: ", result.RowsAffected)
+d.First(findUser, user.ID)
+log.Println("指定插入特定字段 => 新增结果: ", findUser)
+```
+
+![](assets/2024-02-22-10-04-22-image.png)
+
+#### 4. 指定不插入特定的字段
+
+调用方法：`Omit().Create()`
+
+描述：指定新增时不插入哪些字段值
+
+```go
+// 2 指定不插入特定字段
+// INSERT INTO `users` (`birthday`,`updated_at`) VALUES ("2020-01-01 00:00:00.000", "2020-07-04 11:05:21.775")
+user.ID = 0
+result = d.Omit("Name", "Age", "CreatedAt").Create(&user)
+log.Println("指定不插入特定字段 => 错误信息: ", result.Error)
+log.Println("指定不插入特定字段 => 影响行数: ", result.RowsAffected)
+findUser = new(db.User)
+d.First(findUser, user.ID)
+log.Println("指定不插入特定字段 => 新增结果: ", findUser)
+```
+
+![](assets/2024-02-22-10-10-47-image.png)
+
+#### 5. 批量插入
+
+调用方法：`CreateInBatches()`
+
+描述：传递切片进行创建，可以指定每次插入几条数据，分批次插入
+
+```go
+users := []db.User{
+    {Name: "ZhangSan", Age: 18},
+    {Name: "LiSi", Age: 19},
+    {Name: "WangWu", Age: 20},
+    {Name: "ZhaoLiu", Age: 21},
+    {Name: "TianQi", Age: 22},
+}
+
+// 一次插入 2 条数据
+result := d.Omit("Birthday").CreateInBatches(users, 2)
+log.Println("批量插入数据 => 错误信息: ", result.Error)
+log.Println("批量插入数据 => 影响行数: ", result.RowsAffected)
+```
+
+![](assets/2024-02-22-10-33-06-image.png)
+
+#### 6. 钩子
+
+通过给模型绑定特定的钩子，就可以实现在创建记录的不同时期执行特殊的操作，分别有：
+
+```go
+// 在更新或创建之前触发，返回错误则事务回滚
+func (u *User) BeforeSave(tx *gorm.DB) (err error)
+// 在创建之前触发，返回错误则事务回滚
+func (u *User) BeforeCreate(tx *gorm.DB) (err error)
+// 在创建之后触发，返回错误则事务回滚
+func (u *User) AfterCreate(tx *gorm.DB) (err error)
+// 在更新或创建之后触发，返回错误则事务回滚
+func (u *User) AfterSave(tx *gorm.DB) (err error)
+```
+
+官方给出的例子，在创建记录之前校验用户信息：
+
+```go
+func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+    u.UUID = uuid.New()
+
+    if !u.IsValid() {
+      err = errors.New("can't save invalid data")
+    }
+    return
+}
+```
+
+定义了钩子之后，如果有某个需求需要跳过钩子，不执行，则需要使用 `SkipHooks` 模式：
+
+```go
+db.Session(&gorm.Session{SkipHooks: true}).Create(&user)
+```
+
+#### 7. 通过 map 新增
+
+调用方法：`Model().Create()`
+
+描述：先用 `Model()` 指定要操作哪个模型（表），再调用 `Create()` 传入 map 实例来新增记录，也可以传入 map 类型的切片，批量新增记录
+
+```go
+// 1 创建单条记录
+result := d.Model(&db.User{}).Create(map[string]interface{}{
+    "Name": "Johnny",
+    "Age":  18,
+})
+log.Println("map 创建单条记录 => 错误信息: ", result.Error)
+log.Println("map 创建单条记录 => 影响行数: ", result.RowsAffected)
+
+// 2 创建多条记录
+result = d.Model(&db.User{}).Create([]map[string]interface{}{
+    {"Name": "aaa", "Age": 20},
+    {"Name": "bbb", "Age": 21},
+})
+log.Println("map 创建多条记录 => 错误信息: ", result.Error)
+log.Println("map 创建多条记录 => 影响行数: ", result.RowsAffected)
+```
+
+![](assets/2024-02-22-14-49-17-image.png)
+
+#### 8. 新增时使用 SQL 表达式设置字段
+
+例子：在 `User` 结构体中额外定义了一个 `Location` 字段，用于记录地理横纵坐标，现在要将其和 MySQL 的 `geometry` 类型关联起来
+
+`Location` 结构体的定义如下：
+
+```go
+type Location struct {
+    X, Y int
+}
+```
+
+通过给 `Location` 绑定 3 个方法实现关联，分别是：
+
+- `Scan` : 实现了 `sql.Scanner` 接口，作用是将数据库返回的数据解析到 Location 中
+
+- `GormDataType` : 实现了 `schema.GormDataTypeInterface` 接口，作用是告诉 gorm 该类型对应到数据库的什么类型
+
+- `GormValue`: 实现了 `gorm.Valuer` 接口，作用是告诉 gorm 如何将 Location 的值储存到数据库中的对应类型下
+
+```go
+// Scan 实现 sql.Scanner 接口, 用于将数据库数据转换为自定义结构
+func (l *Location) Scan(v interface{}) error {
+    var bytes []byte
+    var ok bool
+    if bytes, ok = v.([]byte); !ok {
+        return errors.New("数据库返回错误的格式")
+    }
+    reg := `POINT\((\d+) (\d+)\)`
+    exp := regexp.MustCompile(reg)
+    results := exp.FindStringSubmatch(string(bytes))
+    if len(results) != 3 {
+        return errors.New("解析数据库返回结果失败")
+    }
+    l.X, _ = strconv.Atoi(results[1])
+    l.Y, _ = strconv.Atoi(results[2])
+    return nil
+}
+
+// GormDataType 实现 schema.GormDataTypeInterface 接口, 指定结构体匹配的数据库类型
+func (l *Location) GormDataType() string {
+    return "geometry"
+}
+
+// GormValue 实现 gorm.Valuer 接口, 指定结构体数据应该怎么储存到数据库中
+func (l *Location) GormValue(ctx context.Context, db *gorm.DB) clause.Expr {
+    return clause.Expr{
+        SQL:  "ST_PointFromText(?)",
+        Vars: []interface{}{fmt.Sprintf("POINT(%d %d)", l.X, l.Y)},
+    }
+}
+```
+
+使用自定义的 SQL 表达式插入记录：
+
+```go
+// 创建一条带有 Location 属性的记录
+user := db.User{
+    Name:     "Haha",
+    Age:      30,
+    Birthday: time.Now(),
+    Location: &db.Location{X: 33, Y: 44},
+}
+result := d.Create(&user)
+log.Println("通过 SQL 表达式创建 => 错误信息: ", result.Error)
+log.Println("通过 SQL 表达式创建 => 影响行数: ", result.RowsAffected)
+
+// 查询
+var findUser = new(db.User)
+d.Raw("select id, created_at, updated_at, deleted_at, name, age, birthday, ST_AsText(location) as location from users where id = ?", user.ID).Scan(&findUser)
+log.Println("通过 SQL 表达式创建 => 重查结果: ", findUser)
+```
+
+> 注：这里需要自己手写 SQL 来将数据库中的 geometry 字段查询成普通文本
+
+![](assets/2024-02-22-16-43-20-image.png)
+
+#### 9. 关联新增
+
+在一个模型中嵌套另一个模型，对应于数据库中一对一和一对多场景。
+
+**注意点**：嵌套的模型需要有一个外层模型 ID 属性，例如外层模型是 User，那么嵌套模型就需要有一个 `UserID` 属性（只针对采用 gorm 默认配置的情况下）
+
+```go
+type User struct {
+    gorm.Model
+    Name       string
+    Age        int
+    Birthday   time.Time
+    Location   *Location
+    CreditCard *CreditCard
+}
+type CreditCard struct {
+    gorm.Model
+    Number string
+    UserID uint
+}
+```
 
 
