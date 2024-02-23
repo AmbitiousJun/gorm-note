@@ -1058,3 +1058,161 @@ log.Println("sql 表达式更新 => 用户信息重查: ", findUser)
 ```
 
 ![](assets/2024-02-23-16-13-40.png)
+
+### 查询 (Query)
+
+#### 1. 基本查询
+
+调用方法：`First()` | `Take()` | `Last()`
+
+描述：三个方法都只能返回至多 1 条记录，并且当查询不到记录时，会返回 `gorm.ErrRecordNotFound` 错误。当模型没有定义主键时，`First` 和 `Last` 方法会自动根据模型的第 1 个属性进行排序
+
+区别：
+
+- `First`: 根据主键升序排序查询第 1 条记录
+- `Take`: 不排序，查询第 1 条记录
+- `Last`: 根据主键降序排序查询第 1 条记录
+
+```go
+// 1 查询 1 条记录, 根据主键升序排序
+var findUser = new(db.User)
+result := d.First(findUser)
+if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+    log.Fatal("查询不到记录: ", result.Error)
+} else {
+    log.Println("First 查询 => 用户信息: ", findUser)
+}
+
+// 2 查询 1 条记录, 不排序
+findUser = new(db.User)
+result = d.Take(findUser)
+if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+    log.Fatal("查询不到记录: ", result.Error)
+} else {
+    log.Println("Take 查询 => 用户信息: ", findUser)
+}
+
+// 3 查询 1 条记录, 根据主键降序排序
+findUser = new(db.User)
+result = d.Last(findUser)
+if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+    log.Fatal("查询不到记录: ", result.Error)
+} else {
+    log.Println("Last 查询 => 用户信息: ", findUser)
+}
+```
+
+![](assets/2024-02-23-16-37-23.png)
+
+#### 2. 根据主键进行查询
+
+在 `crud` 章节的示例代码中，已经大量使用通过主键进行查询的方式，这里不再整理
+
+#### 3. 查询所有记录
+
+调用方法：`Find()`
+
+描述：查询出所有符合条件的记录
+
+```go
+var users []db.User
+result := d.Find(&users)
+log.Println("查询所有记录 => 错误信息: ", result.Error)
+log.Println("查询所有记录 => 用户数: ", len(users))
+for _, user := range users {
+    log.Println(user)
+}
+```
+
+![](assets/2024-02-23-16-49-54.png)
+
+#### 4. 字符串形式的查询条件
+
+调用方法：`Where().Find()`
+
+描述：使用 `Where` 方法，编写字符串形式的查询条件
+
+```go
+var findUser = new(db.User)
+var findUsers []db.User
+
+// Equals
+d.Where("name = ?", "jinzhu").First(findUser)
+
+// Not Equals
+d.Where("name <> ?", "jinzhu").Find(&findUsers)
+
+// In
+d.Where("name IN ?", []string{"jinzhu", "jinzhu_2"}).Find(&findUsers)
+
+// Like
+d.Where("name LIKE ?", "%jin%").Find(&findUsers)
+
+// And
+d.Where("name = ? AND age >= ?", "jinzhu", 22).Find(&findUsers)
+
+lastWeek, today := time.Now().AddDate(0, 0, -7), time.Now()
+// Time
+d.Where("updated_ad > ?", lastWeek).Find(&findUsers)
+
+// Between
+d.Where("created_at BETWEEN ? AND ?", lastWeek, today).Find(&findUsers)
+```
+
+#### 5. 通过map、struct 构造查询条件
+
+调用方法：`Where().Find()`
+
+描述：同样是使用 `Where` 方法构造查询条件，不同的是参数传递的不再是字符串了，而是 `struct` 或者 `map`。需要注意的是，如果使用 `struct` 构造的查询条件，gorm 会忽略掉 **零值** 属性
+
+```go
+var findUsers []*db.User
+
+// 1 使用 struct 构造条件
+d.Where(&db.User{Name: "John", Age: 19}).Find(&findUsers)
+
+// 2 使用 map 构造条件
+d.Where(map[string]interface{}{"Name": "John", "Age": 19}).Find(&findUsers)
+
+// 3 使用 slice 查询主键
+d.Where([]int64{20, 21, 22}).Find(&findUsers)
+```
+
+**struct 构造条件扩展**
+
+使用 `struct` 构造条件时，gorm 会默认忽略掉结构体中的零值属性，但我们可以继续传递参数到 `Where` 方法中，指定要用哪些属性来构造查询条件，参考以下例子：
+
+```go
+// select * from users where name = "jinzhu" and age = 0;
+db.Where(&User{Name: "jinzhu"}, "name", "age").Find(&users)
+
+// select * from users where age = 0;
+db.Where(&User{Name: "jinzhu"}, "age").Find(&users)
+```
+
+#### 6. 内联查询条件
+
+可以不借助 `Where` 方法，直接在 `Find` 方法之后继续拼接参数作为查询条件：
+
+```go
+db.First(&user, "id = ?", "string_primary_key")
+db.Find(&user, "name = ?", "jinzhu")
+db.Find(&users, "name <> ? and age > ?", "jinzhu", 20)
+db.Find(&users, User{Age: 20})
+db.Find(&users, map[string]interface{}{"age": 20})
+```
+
+#### 7. Not 查询条件
+
+`Not` 查询条件与 `Where` 条件类似，只是在最终的 SQL 条件之前再加上 `NOT` 关键字
+
+```go
+// select * from users where NOT name = "jinzhu" order by id limit 1;
+db.Not("name = ?", "jinzhu").First(&user)
+// select * from users where name NOT in ("jinzhu", "jinzhu_2");
+db.Not(map[string]interface{}{"name": []string{"jinzhu", "jinzhu_2"}})
+// select * from users where name <> "jinzhu" and age <> 18 order by id;
+db.Not(User{Name: "jinzhu", Age: 18}).First(&user)
+// select * from users where id NOT in (1, 2, 3) order by id limit 1;
+db.Not([]int64{1, 2, 3}).First(&user)
+```
