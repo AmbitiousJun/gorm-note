@@ -759,4 +759,157 @@ d.Clauses(clause.OnConflict{UpdateAll: true}).Create(&user)
 // INSERT INTO `users` *** ON DUPLICATE KEY UPDATE `name`=VALUES(name),`age`=VALUES(age), ...; MySQL
 ```
 
+### 删除 (Delete)
+
+#### 1. 基本删除
+
+调用方法：`Delete()`
+
+描述：直接传递实体到方法中，自动根据 id 字段进行删除，如果实体中包含 `DeletedAt` 属性，自动开启逻辑删除
+
+```go
+// 1 直接传递实体进行删除，自动根据 id 删除
+result := d.Delete(&user)
+log.Println("传递实体进行删除 => 错误信息: ", result.Error)
+log.Println("传递实体进行删除 => 影响行数: ", result.RowsAffected)
+
+// 2 自定义删除条件 + id
+result = d.Where("name = ?", "ZhangSan").Delete(&user)
+log.Println("自定义删除条件删除 => 错误信息: ", result.Error)
+log.Println("自定义删除条件删除 => 影响行数: ", result.RowsAffected)
+```
+
+#### 2. 根据主键删除
+
+调用方法：`Delete()`
+
+描述：传递一个空实体到方法中，跟上要删除记录的主键值进行删除。主键值可以是 `int`, `string`, `slice` 类型
+
+```go
+// 1 传递 int 类型的主键值进行删除
+result := d.Delete(&db.User{}, 1)
+log.Println("传递 int 类型的主键值进行删除 => 错误信息: ", result.Error)
+log.Println("传递 int 类型的主键值进行删除 => 影响行数: ", result.RowsAffected)
+
+// 2 传递 string 类型的主键值进行删除
+result = d.Delete(&db.User{}, "2")
+log.Println("传递 string 类型的主键值进行删除 => 错误信息: ", result.Error)
+log.Println("传递 string 类型的主键值进行删除 => 影响行数: ", result.RowsAffected)
+
+// 3 传递 slice 类型的主键值进行批量删除
+result = d.Delete(&db.User{}, []int{3, 4, 5})
+log.Println("传递 slice 类型的主键值进行删除 => 错误信息: ", result.Error)
+log.Println("传递 slice 类型的主键值进行删除 => 影响行数: ", result.RowsAffected)
+```
+
+#### 3. 钩子
+
+类似新增，删除操作也可以为模型定义相应的钩子函数 `BeforeDelete` 和 `AfterDelete`
+
+👇官方示例：在删除操作执行之前，判断用户如果是管理员角色就不允许删除
+
+```go
+func (u *User) BeforeDelete(tx *gorm.DB) (err error) {
+    if u.Role == "admin" {
+        return errors.New("admin user not allowed to delete")
+    }
+    return
+}
+```
+
+#### 4. 批量删除
+
+调用方法：`Delete()`
+
+描述：在调用时传递一个不包含主键属性的实体即可自动进行批量删除
+
+```go
+// 传递一个不包含主键的实体，自动执行批量删除
+result := d.Delete(&db.User{}, "name like ?", "%Haha%")
+log.Println("批量删除 => 错误信息: ", result.Error)
+log.Println("批量删除 => 影响行数: ", result.RowsAffected)
+```
+
+#### 5. 全局操作阻塞
+
+gorm 默认不允许全局删除表中的记录，即删除时没有携带 where 条件的删除，可以通过以下 3 种方式绕过：
+
+```go
+// 调用删除方法时没有指定 where 条件会直接抛出异常
+result := d.Delete(&db.User{})
+log.Println("没有指定 where 条件 => 错误信息: ", result.Error)
+log.Println("没有指定 where 条件 => 影响行数: ", result.RowsAffected)
+
+// 绕过方式 1：指定一个永远为真的条件
+result = d.Where("1 = 1").Delete(&db.User{})
+log.Println("绕过方式 1 => 错误信息: ", result.Error)
+log.Println("绕过方式 1 => 影响行数: ", result.RowsAffected)
+
+// 绕过方式 2：执行原始 SQL
+result = d.Exec("delete from users")
+log.Println("绕过方式 2 => 错误信息: ", result.Error)
+log.Println("绕过方式 2 => 影响行数: ", result.RowsAffected)
+
+// 绕过方式 3：开启 AllowGlobalUpdate
+result = d.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&db.User{})
+log.Println("绕过方式 3 => 错误信息: ", result.Error)
+log.Println("绕过方式 3 => 影响行数: ", result.RowsAffected)
+```
+
+#### 6. 回写被删除的数据
+
+调用方法：`Clauses(clause.Returning{}).Delete()`
+
+描述：删除数据后，将被删除的数据回写到内存中。这个特性只有数据库支持了才会生效
+
+```go
+var users []db.User
+result := d.Clauses(clause.Returning{
+Columns: []clause.Column{{Name: "age"}, {Name: "name"}},
+}).Delete(&users, "age in ?", []int{18, 20})
+log.Println("删除时返回数据 => 错误信息: ", result.Error)
+log.Println("删除时返回数据 => 影响行数: ", result.RowsAffected)
+log.Println("删除时返回数据 => users: ", users)
+```
+
+#### 7. 逻辑删除 (Soft Delete)
+
+当自定义模型组合了 `gorm.Model` 结构或者定义了一个 `gorm.DeletedAt` 类型的属性时，逻辑删除模式自动开启。如下面两个定义所示：
+
+```go
+type User struct {
+    gorm.Model
+    Name string
+}
+
+
+type User struct {
+    ID      uint
+    Name    string
+    Deleted gorm.DeletedAt
+}
+```
+
+**如何查询出已经被逻辑删除的记录？**
+
+调用方法：`Unscoped().Find()`
+
+示例：
+
+```go
+d.Unscoped().Where("age = 20").Find(&users)
+// select * from users where age = 20;
+```
+
+**在已开启逻辑删除模式下，如何进行永久删除？**
+
+调用方法：`Unscoped().Delete()`
+
+示例：
+
+```go
+d.Unscoped().Delete(&user)
+// delete from users where id = 10;
+```
+
 

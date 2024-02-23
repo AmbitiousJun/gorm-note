@@ -3,7 +3,6 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"regexp"
@@ -92,20 +91,4 @@ func (u *User) String() string {
 			CreditCard: %v
 		}
 	`, u.ID, u.CreatedAt, u.UpdatedAt, u.DeletedAt, u.Name, u.Age, u.Birthday, u.Location, u.CreditCard)
-}
-
-type Student struct {
-	gorm.Model
-	Name   sql.NullString
-	Level  int    `gorm:"not null;default:1"`
-	CardNo string `gorm:"unique;not null"`
-}
-
-func (s *Student) String() string {
-	return fmt.Sprintf(`
-		ID: %v,
-		Name: %v,
-		Level: %v,
-		CardNo: %v
-	`, s.ID, s.Name, s.Level, s.CardNo)
 }
