@@ -733,15 +733,15 @@ d.Clauses(clause.OnConflict{DoNothing: true}).Create(&user)
 // MERGE INTO "users" USING *** WHEN NOT MATCHED THEN INSERT *** WHEN MATCHED THEN UPDATE SET ***; SQL Server
 // INSERT INTO `users` *** ON DUPLICATE KEY UPDATE ***; MySQL
 d.Clauses(clause.OnConflict{
-	Columns:   []clause.Column{{Name: "id"}},
-	DoUpdates: clause.Assignments(map[string]interface{}{"role": "user"}),
+    Columns:   []clause.Column{{Name: "id"}},
+    DoUpdates: clause.Assignments(map[string]interface{}{"role": "user"}),
 }).Create(&user)
 
 // 3 当字段 id 冲突时，使用 SQL 生成指定字段值
 // INSERT INTO `users` *** ON DUPLICATE KEY UPDATE `count`=GREATEST(count, VALUES(count));
 d.Clauses(clause.OnConflict{
-	Columns:   []clause.Column{{Name: "id"}},
-	DoUpdates: clause.Assignments(map[string]interface{}{"count": gorm.Expr("GREATEST(count, VALUES(count))")}),
+    Columns:   []clause.Column{{Name: "id"}},
+    DoUpdates: clause.Assignments(map[string]interface{}{"count": gorm.Expr("GREATEST(count, VALUES(count))")}),
 }).Create(&user)
 
 // 4 当字段 id 冲突时，将指定字段更新为新值
@@ -749,8 +749,8 @@ d.Clauses(clause.OnConflict{
 // INSERT INTO "users" *** ON CONFLICT ("id") DO UPDATE SET "name"="excluded"."name", "age"="excluded"."age"; PostgreSQL
 // INSERT INTO `users` *** ON DUPLICATE KEY UPDATE `name`=VALUES(name),`age`=VALUES(age); MySQL
 d.Clauses(clause.OnConflict{
-	Columns:   []clause.Column{{Name: "id"}},
-	DoUpdates: clause.AssignmentColumns([]string{"name", "age"}),
+    Columns:   []clause.Column{{Name: "id"}},
+    DoUpdates: clause.AssignmentColumns([]string{"name", "age"}),
 }).Create(&user)
 
 // 5 当字段 id 冲突时，将除了主键之外的全部字段进行更新
@@ -912,4 +912,149 @@ d.Unscoped().Delete(&user)
 // delete from users where id = 10;
 ```
 
+### 更新 (Update)
 
+#### 1. 基本更新
+
+调用方法：`Save()`
+
+描述：将要修改的实体直接传递给 `Save` 方法即可，需要注意的是，若实体中的主键值不为空，则会更新实体的所有属性到数据库中；若实体中的主键值为空，则会执行新增操作。
+
+```go
+// 更新所有字段
+var user = new(db.User)
+d.First(user, 27)
+log.Println("更新所有字段 => 查询出的用户原信息: ", *user)
+user.Name = "李四"
+user.Age = 99
+result := d.Save(user)
+log.Println("更新所有字段 => 错误信息: ", result.Error)
+log.Println("更新所有字段 => 影响行数: ", result.RowsAffected)
+d.First(user, 27)
+log.Println("更新所有字段 => 修改后重新查询用户信息: ", *user)
+```
+
+#### 2. 更新单个字段
+
+调用方法：`Model().Update()` | `Model(&User{}).Where().Update()`
+
+描述：通过 `Model` 方法指定要更新哪个表的记录，再调用 `Update` 方法更新单个字段。需要注意的是，如果在更新时 gorm 检测不到 where 条件，会直接返回错误。使用第一种方式更新时，要确保传入 `Model` 的实体有主键值，否则需要使用第二种调用方式，手动指定 where 条件。
+
+```go
+// 使用自定义的 where 条件进行更新
+result := d.Model(&db.User{}).Where("name = ?", "李四").Update("age", 88)
+log.Println("更新单个字段 => 错误信息: ", result.Error)
+log.Println("更新单个字段 => 影响行数: ", result.RowsAffected)
+var findUser = new(db.User)
+d.First(findUser, "name = ?", "李四")
+log.Println("更新单个字段 => 重查数据: ", *findUser)
+```
+
+![](assets/2024-02-23-15-26-27.png)
+
+#### 3. 更新多个字段
+
+调用方法：`Model().Updates()`
+
+描述：可以将 `struct` 和 `map` 传入 `Updates` 方法中实现更新多个字段。使用 `struct` 进行更新时，gorm 只会扫描结构体中的 **非零值** 属性进行更新。
+
+```go
+var findUser = new(db.User)
+d.First(findUser, 27)
+log.Println("更新多个字段 => 用户原始信息: ", findUser)
+
+// 1 使用 struct 更新
+result := d.Model(findUser).Updates(db.User{Name: "王五", Age: 22})
+log.Println("struct 更新多个字段 => 错误信息: ", result.Error)
+log.Println("struct 更新多个字段 => 影响行数: ", result.RowsAffected)
+d.First(findUser, 27)
+log.Println("struct 更新多个字段 => 用户信息重查: ", findUser)
+
+// 2 使用 map 更新
+result = d.Model(findUser).Updates(map[string]interface{}{"name": "赵六", "age": 30})
+log.Println("map 更新多个字段 => 错误信息: ", result.Error)
+log.Println("map 更新多个字段 => 影响行数: ", result.RowsAffected)
+d.First(findUser, 27)
+log.Println("map 更新多个字段 => 用户信息重查: ", findUser)
+```
+
+![](assets/2024-02-23-15-39-58.png)
+
+![](assets/2024-02-23-15-40-26.png)
+
+#### 4. 部分字段更新
+
+调用方法：`Model().Select().Updates()` | `Model().Omit().Updates()`
+
+描述：通过 `Select` 和 `Omit` 两个方法实现部分字段更新
+
+```go
+var findUser = new(db.User)
+d.First(findUser, 27)
+log.Println("原始的用户信息: ", findUser)
+
+// 1 select 部分更新
+result := d.Model(findUser).Select("Name").Updates(db.User{Name: "啊啊啊", Age: 50})
+log.Println("select 部分更新 => 错误信息: ", result.Error)
+log.Println("select 部分更新 => 影响行数: ", result.RowsAffected)
+d.First(findUser, 27)
+log.Println("select 部分更新 => 用户信息重查: ", findUser)
+
+// 2 omit 忽略更新
+result = d.Model(findUser).Omit("Name").Updates(db.User{Name: "嗯嗯嗯", Age: 24})
+log.Println("omit 忽略更新 => 错误信息: ", result.Error)
+log.Println("omit 忽略更新 => 影响行数: ", result.RowsAffected)
+d.First(findUser, 27)
+log.Println("omit 忽略更新 => 用户信息重查: ", findUser)
+```
+
+![](assets/2024-02-23-15-52-17.png)
+
+![](assets/2024-02-23-15-52-38.png)
+
+#### 5. 钩子
+
+gorm 支持为实体类绑定 4 个钩子方法，分别是 `BeforeSave`, `BeforeUpdate`, `AfterSave`, `AfterUpdate`
+
+下面是官方示例：不允许更新 admin 用户的数据
+
+```go
+func (u *User) BeforeUpdate(tx *gorm.DB) (err error) {
+    if u.Role == "admin" {
+        return errors.New("admin user not allowed to update")
+    }
+    return
+}
+```
+
+#### 6. 批量更新
+
+调用方法：`Model().Where().Updates()`
+
+描述：跟单个更新差别不大，构造一个查询结果不唯一的 where 条件即可实现批量更新
+
+#### 7. 全局操作阻塞
+
+更新操作跟删除操作一样，如果更新语句里面没有 where 条件，默认不允许更新
+
+绕过方式与删除操作一致
+
+#### 8. 使用 SQL 表达式更新
+
+调用方法：`Model().Update(column, gorm.Expr())`
+
+描述：使用 `gorm.Expr` 方法定义 SQL 表达式更新字段
+
+```go
+var findUser = new(db.User)
+d.First(findUser, 27)
+log.Println("sql 表达式更新 => 原始用户信息: ", findUser)
+
+result := d.Model(findUser).Update("age", gorm.Expr("age * ? + ?", 2, 100))
+log.Println("sql 表达式更新 => 错误信息: ", result.Error)
+log.Println("sql 表达式更新 => 影响行数: ", result.RowsAffected)
+d.First(findUser, 27)
+log.Println("sql 表达式更新 => 用户信息重查: ", findUser)
+```
+
+![](assets/2024-02-23-16-13-40.png)
