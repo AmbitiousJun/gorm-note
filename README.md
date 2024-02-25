@@ -1216,3 +1216,39 @@ db.Not(User{Name: "jinzhu", Age: 18}).First(&user)
 // select * from users where id NOT in (1, 2, 3) order by id limit 1;
 db.Not([]int64{1, 2, 3}).First(&user)
 ```
+
+#### 8. Or 查询条件
+
+例子：
+
+```go
+// select * from users where role = 'admin' or role = 'super_admin';
+db.Where("role = ?", "admin").Or("role = ?", "super_admin").Find(&users)
+// select * from users where name = 'jinzhu' or (name = 'jinzhu_2' and age = 18);
+db.Where("name = 'jinzhu'").Or(User{Name: "jinzhu_2", Age: 18}).Find(&users)
+// select * from users where name = 'jinzhu' or (name = 'jinzhu_2' and age = 18);
+db.Where("name = 'jinzhu'").Or(map[string]interface{}{"name": "jinzhu_2", "age": 18}).Find(&users)
+```
+
+#### 9. Order 排序
+
+描述：指定查询数据的排列顺序
+
+例子：
+
+```go
+// select * from users order by age desc, name;
+db.Order("age desc, name").Find(&users)
+
+// select * from users order by age desc, name;
+db.Order("age desc").Order("name").Find(&users)
+
+// select * from users order by field(id, 1, 2, 3)
+db.Clauses(clause.OrderBy{
+    Expression: clause.Expr{
+        SQL: "field(id,?)",
+        Vars: []interface{}{[]int{1, 2, 3}},
+        WithoutParentheses: true,
+    }
+}).Find(&User{})
+```
