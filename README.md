@@ -1331,3 +1331,133 @@ res = d.Limit(math.MaxInt32).Offset(3).Find(&users)
 重新运行结果：
 
 ![](assets/2024-03-02-18-09-31.png)
+
+#### 11. Group By & Having
+
+描述：
+
+1. `Group By` 子句用于将查询结果进行分组 **统计**，通常查询的字段中都包含有聚合函数
+2. `Having` 与 `Group By` 配合使用，用于对 **分组完成之后** 的数据进行筛选过滤
+3. `Where` 与 `Having` 的区别是：
+   
+   - 执行优先级：`Where` > 聚合函数 > `Group By` > `Having`
+   - `Where` 不能配合聚合函数筛选记录，而 `Having` 可以
+
+👇官方例子：
+
+```go
+type result struct {
+    Date time.Time
+    Total int
+}
+
+// 1 查询出名称以 "group" 开头的所有用户，根据不同名称的用户进行分组，再计算出每组的年龄和
+// select name, sum(age) as total from `users` where name like "group%" group by `name` limit 1
+db.Model(&User{}).Select("name, sum(age) as total").Where("name like ?", "group%").Group("name").First(&result)
+
+// 2 查询出所有用户，根据不同名称的用户进行分组，再计算出每组的年龄和，最后过滤出组名为 "group" 的数据
+// select name, sum(age) as total from `users` group by `name` having name = "group"
+db.Model(&User{}).Select("name, sum(age) as total").Group("name").Having("name = ?", "group").Find(&result)
+
+// 3 查询所有的订单数据，根据订单的创建日期进行分组，再统计出每组的金额总和
+rows, err := db.Table("orders").select("date(created_at) as date, sum(amount) as total").Group("date(created_at)").Rows()
+defer rows.Close()
+for rows.Next() {
+    ...
+}
+
+// 4 查询所有的订单数据，根据订单的创建日期进行分组，再统计出每组的金额总和，最后筛选出金额总和大于 100 的分组
+rows, err := db.Table("orders").Select("date(created_at) as date, sum(amount) as total").Group("date(created_at)").Having("sum(amount) > ?", 100).Rows()
+defer rows.Close()
+for rows.Next() {
+    ...
+} 
+```
+
+#### 12. Distinct
+
+描述：Distinct 子句用于查询时去重，可以同时指定多个字段，在查询出来的结果中，如果两条记录中的指定字段都相同，就认为两条记录是相同的，此时数据库只会返回 1 条记录
+
+例子：
+
+```go
+db.Distinct("name", "age").Order("name, age desc").Find(&results)
+```
+
+#### 13. Joins
+
+描述：连接子句，用于连表查询
+
+例子：
+
+```go
+// 查询所有的用户信息，根据用户 id 左外连接 emails 表，查询用户的邮箱信息
+db.Tables("users").Select("users.name, emails.email").Joins("left join emails on emails.user_id = users.id").Scan(&results{})
+```
+
+#### 14. Joins 关联临时表
+
+描述：可以先临时构建好临时表的查询语句，再使用 Joins 语句关联查询
+
+例子：
+
+```go
+type User struct {
+    Id  int
+    Age int
+}
+
+type Order struct {
+    UserId     int
+    FinishedAt *time.Time
+}
+
+// 子查询，年龄 18 岁以上的用户的最后一笔订单记录时间
+query := db.Table("order").Select("MAX(order.finished_at) as latest").Joins("left join user on order.user_id = user.id").Where("user.age > ?", 18).Group("order.user_id")
+// 内连接查询出所有 18 岁以上用户的最后一笔订单记录信息
+db.Model(&Order{}).Joins("join (?) q on order.finished_at = q.latest", query).Scan(&results)
+```
+
+#### 15. Scan
+
+描述：`Scan` 类似于 `Find`，都是用于将查询到的数据绑定到结构体上。
+
+区别：`Find` 只能查询并绑定模型数据，`Scan` 能够绑定到任意的结构体上
+
+例子：
+
+```go
+type Result struct {
+	Name string
+	Age  int
+}
+
+func main() {
+	d := db.DB()
+	d.AutoMigrate(&db.User{})
+
+	var result Result
+	var results = make([]*Result, 0)
+
+	// 1 查询单条记录
+	res := d.Table("users").Select("name", "age").Where("id = ?", 9).Scan(&result)
+	if res.Error != nil {
+		log.Fatal("查询用户信息出错", res.Error)
+	}
+	log.Println("查询到 id 为 9 的用户信息：", result)
+
+	// 2 查询多条记录
+	res = d.Raw("select name, age from `users` where `deleted_at` is not null").Scan(&results)
+	if res.Error != nil {
+		log.Fatal("查询用户信息出错", res.Error)
+	}
+	log.Println("查询所有的用户信息：")
+	for _, r := range results {
+		log.Println(r)
+	}
+}
+```
+
+运行结果：
+
+![](assets/2024-03-04-17-33-53.png)
