@@ -1463,3 +1463,80 @@ func main() {
 运行结果：
 
 ![](assets/2024-03-04-17-33-53.png)
+
+## 高级查询
+
+### 1. 智能查询字段子集
+
+描述：通常情况下，可以通过 `db.Select()` 方法指定要查询某张表的哪些字段。
+在 GORM 中，允许定义一个原有模型的子模型，特点是子模型的属性都存在于原有模型中，使用子模型类型的变量去接收原有模型的查询结果时，会智能生成 Select 语句
+
+例子：
+
+```go
+// 使用 User 结构体的 "子集" 结构体进行查询，GORM 会智能开启部分字段查询
+type APIUser struct {
+    ID   uint
+    Name string
+}
+
+func main() {
+    d := db.DB()
+    d.AutoMigrate(&db.User{})
+
+    var users = make([]*APIUser, 0)
+    res := d.Model(&db.User{}).Limit(10).Find(&users)
+
+    if res.Error != nil {
+        log.Fatal("查询用户失败", res.Error)
+    }
+    log.Println("查询到的用户数据")
+    for _, user := range users {
+        log.Println(user)
+    }
+}
+```
+
+运行结果：
+
+![](assets/2024-03-04-21-03-39.png)
+
+### 2. 锁
+
+GORM 提供了 `clause.Locking{}` 结构体，用于在操作数据库时定义锁
+
+```go
+// 一个基本的 写锁
+// SQL: select * from `users` for update
+db.Clauses(clause.Locking{Strength: "UPDATE"}).Find(&users)
+```
+
+> 上述 SQL 语句通过 `FOR UPDATE` 关键字，在事务执行的过程中，对所有选中的行加上 “写锁”。
+> 
+> 适用场景：准备更新若干行数据，在事务执行的过程当中，阻止其他事务对这若干行数据进行修改，直到当前事务结束，才释放锁。
+
+`Strength` 属性除了指定为 `UPDATE` 之外，还可以指定为 `SHARE` (读锁)。即允许多个事务对被锁行进行读操作，但不允许更新或者删除这些行
+
+```go
+// SQL: select * from `users` for share of `users`
+db.Clauses(clause.Locking{
+    Strength: "SHARE",
+    Table: clause.Table{Name: clause.CurrentTable}
+}).Find(&users)
+```
+
+`clause.Locking{}` 结构体中的 `Table` 属性用于指定要对哪张表进行加锁。
+主要用于连表查询的时候，锁单张表。
+
+```go
+// SQL: select * from `users` for update nowait
+db.Clauses(clause.Locking{
+    Strength: "UPDATE",
+    Options: "NOWAIT",
+}).Find(&users)
+```
+
+`Options` 属性可指定值：
+
+- `NOWAIT`: 尝试加锁失败的时候，会 **立即返回** error 错误，而不是阻塞等待
+- `SKIP LOCKED`: 对多行记录进行加锁时，如果只是某几行数据加锁失败，就跳过那几行数据的更新操作。适用于在高并发环境下对暂时没有被其他事务加锁的字段进行更新操作
