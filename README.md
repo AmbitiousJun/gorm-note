@@ -1540,3 +1540,20 @@ db.Clauses(clause.Locking{
 
 - `NOWAIT`: 尝试加锁失败的时候，会 **立即返回** error 错误，而不是阻塞等待
 - `SKIP LOCKED`: 对多行记录进行加锁时，如果只是某几行数据加锁失败，就跳过那几行数据的更新操作。适用于在高并发环境下对暂时没有被其他事务加锁的字段进行更新操作
+
+### 3. 子查询
+
+描述：GORM 提供了一种很方便的方式实现子查询，那就是使用 `*gorm.DB` 类型的对象作为查询的参数
+
+例子：
+
+```go
+// 简单子查询
+// SQL: select * from `orders` where amount > (select AVG(amount) from `orders`);
+db.Where("amount > (?)", db.Table("orders").Select("AVG(amount)")).Find(&orders)
+
+// 嵌套子查询
+// SQL: SELECT AVG(age) as avgage FROM `users` GROUP BY `name` HAVING AVG(age) > (SELECT AVG(age) FROM `users` WHERE name LIKE "name%"
+subQuery := db.Select("AVG(age)").Where("name LIKE ?", "name%").Table("users")
+db.Select("AVG(age) as avgage").Group("name").Having("AVG(age) > (?)", subQuery).Find(&results)
+```
