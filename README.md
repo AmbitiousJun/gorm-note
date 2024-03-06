@@ -1337,7 +1337,9 @@ res = d.Limit(math.MaxInt32).Offset(3).Find(&users)
 描述：
 
 1. `Group By` 子句用于将查询结果进行分组 **统计**，通常查询的字段中都包含有聚合函数
+
 2. `Having` 与 `Group By` 配合使用，用于对 **分组完成之后** 的数据进行筛选过滤
+
 3. `Where` 与 `Having` 的区别是：
    
    - 执行优先级：`Where` > 聚合函数 > `Group By` > `Having`
