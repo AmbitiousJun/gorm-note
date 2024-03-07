@@ -463,7 +463,7 @@ type Blog struct{
 
 调用方法：`Create()`
 
-描述：实例化一个模型结构体，将其指针传递给 `Create()` 即可，方法返回一个 `result` 对象，可以获取到操作数据库的影响行数和错误信息，同时，新记录的主键值也会被回写到模型实例中
+实例化一个模型结构体，将其指针传递给 `Create()` 即可，方法返回一个 `result` 对象，可以获取到操作数据库的影响行数和错误信息，同时，新记录的主键值也会被回写到模型实例中
 
 ```go
 // 1 创建 user, 获取主键以及操作结果
@@ -478,7 +478,7 @@ log.Println("新增时的数据库影响行数: ", result.RowsAffected)
 
 调用方法：`Create()`
 
-描述：实例化一个模型结构体切片，再将切片传递给 `Create()` 即可
+实例化一个模型结构体切片，再将切片传递给 `Create()` 即可
 
 ```go
 // 2 批量新增 user
@@ -500,7 +500,7 @@ log.Println("批量新增时的数据库影响行数: ", result.RowsAffected)
 
 调用方法：`Select().Create()`
 
-描述：指定新增时要插入哪些字段值
+指定新增时要插入哪些字段值
 
 ```go
 // 1 指定插入特定的字段
@@ -519,7 +519,7 @@ log.Println("指定插入特定字段 => 新增结果: ", findUser)
 
 调用方法：`Omit().Create()`
 
-描述：指定新增时不插入哪些字段值
+指定新增时不插入哪些字段值
 
 ```go
 // 2 指定不插入特定字段
@@ -539,7 +539,7 @@ log.Println("指定不插入特定字段 => 新增结果: ", findUser)
 
 调用方法：`CreateInBatches()`
 
-描述：传递切片进行创建，可以指定每次插入几条数据，分批次插入
+传递切片进行创建，可以指定每次插入几条数据，分批次插入
 
 ```go
 users := []db.User{
@@ -596,7 +596,7 @@ db.Session(&gorm.Session{SkipHooks: true}).Create(&user)
 
 调用方法：`Model().Create()`
 
-描述：先用 `Model()` 指定要操作哪个模型（表），再调用 `Create()` 传入 map 实例来新增记录，也可以传入 map 类型的切片，批量新增记录
+先用 `Model()` 指定要操作哪个模型（表），再调用 `Create()` 传入 map 实例来新增记录，也可以传入 map 类型的切片，批量新增记录
 
 ```go
 // 1 创建单条记录
@@ -721,7 +721,7 @@ type CreditCard struct {
 
 调用方法：`Clauses(clause.OnConflict{}).Create()`
 
-描述：当要修改的某个字段与数据库原有字段冲突（主键已存在、唯一索引冲突）时，可以指定冲突处理方式
+当要修改的某个字段与数据库原有字段冲突（主键已存在、唯一索引冲突）时，可以指定冲突处理方式
 
 ```go
 user := db.User{Name: "Sarra", Age: 30}
@@ -765,7 +765,7 @@ d.Clauses(clause.OnConflict{UpdateAll: true}).Create(&user)
 
 调用方法：`Delete()`
 
-描述：直接传递实体到方法中，自动根据 id 字段进行删除，如果实体中包含 `DeletedAt` 属性，自动开启逻辑删除
+直接传递实体到方法中，自动根据 id 字段进行删除，如果实体中包含 `DeletedAt` 属性，自动开启逻辑删除
 
 ```go
 // 1 直接传递实体进行删除，自动根据 id 删除
@@ -783,7 +783,7 @@ log.Println("自定义删除条件删除 => 影响行数: ", result.RowsAffected
 
 调用方法：`Delete()`
 
-描述：传递一个空实体到方法中，跟上要删除记录的主键值进行删除。主键值可以是 `int`, `string`, `slice` 类型
+传递一个空实体到方法中，跟上要删除记录的主键值进行删除。主键值可以是 `int`, `string`, `slice` 类型
 
 ```go
 // 1 传递 int 类型的主键值进行删除
@@ -821,7 +821,7 @@ func (u *User) BeforeDelete(tx *gorm.DB) (err error) {
 
 调用方法：`Delete()`
 
-描述：在调用时传递一个不包含主键属性的实体即可自动进行批量删除
+在调用时传递一个不包含主键属性的实体即可自动进行批量删除
 
 ```go
 // 传递一个不包含主键的实体，自动执行批量删除
@@ -860,7 +860,7 @@ log.Println("绕过方式 3 => 影响行数: ", result.RowsAffected)
 
 调用方法：`Clauses(clause.Returning{}).Delete()`
 
-描述：删除数据后，将被删除的数据回写到内存中。这个特性只有数据库支持了才会生效
+删除数据后，将被删除的数据回写到内存中。这个特性只有数据库支持了才会生效
 
 ```go
 var users []db.User
@@ -918,7 +918,7 @@ d.Unscoped().Delete(&user)
 
 调用方法：`Save()`
 
-描述：将要修改的实体直接传递给 `Save` 方法即可，需要注意的是，若实体中的主键值不为空，则会更新实体的所有属性到数据库中；若实体中的主键值为空，则会执行新增操作。
+将要修改的实体直接传递给 `Save` 方法即可，需要注意的是，若实体中的主键值不为空，则会更新实体的所有属性到数据库中；若实体中的主键值为空，则会执行新增操作。
 
 ```go
 // 更新所有字段
@@ -938,7 +938,7 @@ log.Println("更新所有字段 => 修改后重新查询用户信息: ", *user)
 
 调用方法：`Model().Update()` | `Model(&User{}).Where().Update()`
 
-描述：通过 `Model` 方法指定要更新哪个表的记录，再调用 `Update` 方法更新单个字段。需要注意的是，如果在更新时 gorm 检测不到 where 条件，会直接返回错误。使用第一种方式更新时，要确保传入 `Model` 的实体有主键值，否则需要使用第二种调用方式，手动指定 where 条件。
+通过 `Model` 方法指定要更新哪个表的记录，再调用 `Update` 方法更新单个字段。需要注意的是，如果在更新时 gorm 检测不到 where 条件，会直接返回错误。使用第一种方式更新时，要确保传入 `Model` 的实体有主键值，否则需要使用第二种调用方式，手动指定 where 条件。
 
 ```go
 // 使用自定义的 where 条件进行更新
@@ -956,7 +956,7 @@ log.Println("更新单个字段 => 重查数据: ", *findUser)
 
 调用方法：`Model().Updates()`
 
-描述：可以将 `struct` 和 `map` 传入 `Updates` 方法中实现更新多个字段。使用 `struct` 进行更新时，gorm 只会扫描结构体中的 **非零值** 属性进行更新。
+可以将 `struct` 和 `map` 传入 `Updates` 方法中实现更新多个字段。使用 `struct` 进行更新时，gorm 只会扫描结构体中的 **非零值** 属性进行更新。
 
 ```go
 var findUser = new(db.User)
@@ -986,7 +986,7 @@ log.Println("map 更新多个字段 => 用户信息重查: ", findUser)
 
 调用方法：`Model().Select().Updates()` | `Model().Omit().Updates()`
 
-描述：通过 `Select` 和 `Omit` 两个方法实现部分字段更新
+通过 `Select` 和 `Omit` 两个方法实现部分字段更新
 
 ```go
 var findUser = new(db.User)
@@ -1031,7 +1031,7 @@ func (u *User) BeforeUpdate(tx *gorm.DB) (err error) {
 
 调用方法：`Model().Where().Updates()`
 
-描述：跟单个更新差别不大，构造一个查询结果不唯一的 where 条件即可实现批量更新
+跟单个更新差别不大，构造一个查询结果不唯一的 where 条件即可实现批量更新
 
 #### 7. 全局操作阻塞
 
@@ -1043,7 +1043,7 @@ func (u *User) BeforeUpdate(tx *gorm.DB) (err error) {
 
 调用方法：`Model().Update(column, gorm.Expr())`
 
-描述：使用 `gorm.Expr` 方法定义 SQL 表达式更新字段
+使用 `gorm.Expr` 方法定义 SQL 表达式更新字段
 
 ```go
 var findUser = new(db.User)
@@ -1065,7 +1065,7 @@ log.Println("sql 表达式更新 => 用户信息重查: ", findUser)
 
 调用方法：`First()` | `Take()` | `Last()`
 
-描述：三个方法都只能返回至多 1 条记录，并且当查询不到记录时，会返回 `gorm.ErrRecordNotFound` 错误。当模型没有定义主键时，`First` 和 `Last` 方法会自动根据模型的第 1 个属性进行排序
+三个方法都只能返回至多 1 条记录，并且当查询不到记录时，会返回 `gorm.ErrRecordNotFound` 错误。当模型没有定义主键时，`First` 和 `Last` 方法会自动根据模型的第 1 个属性进行排序
 
 区别：
 
@@ -1112,7 +1112,7 @@ if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 
 调用方法：`Find()`
 
-描述：查询出所有符合条件的记录
+查询出所有符合条件的记录
 
 ```go
 var users []db.User
@@ -1130,7 +1130,7 @@ for _, user := range users {
 
 调用方法：`Where().Find()`
 
-描述：使用 `Where` 方法，编写字符串形式的查询条件
+使用 `Where` 方法，编写字符串形式的查询条件
 
 ```go
 var findUser = new(db.User)
@@ -1163,7 +1163,7 @@ d.Where("created_at BETWEEN ? AND ?", lastWeek, today).Find(&findUsers)
 
 调用方法：`Where().Find()`
 
-描述：同样是使用 `Where` 方法构造查询条件，不同的是参数传递的不再是字符串了，而是 `struct` 或者 `map`。需要注意的是，如果使用 `struct` 构造的查询条件，gorm 会忽略掉 **零值** 属性
+同样是使用 `Where` 方法构造查询条件，不同的是参数传递的不再是字符串了，而是 `struct` 或者 `map`。需要注意的是，如果使用 `struct` 构造的查询条件，gorm 会忽略掉 **零值** 属性
 
 ```go
 var findUsers []*db.User
@@ -1232,7 +1232,7 @@ db.Where("name = 'jinzhu'").Or(map[string]interface{}{"name": "jinzhu_2", "age":
 
 #### 9. Order 排序
 
-描述：指定查询数据的排列顺序
+指定查询数据的排列顺序
 
 例子：
 
@@ -1255,7 +1255,7 @@ db.Clauses(clause.OrderBy{
 
 #### 10. Limit & Offset
 
-描述：`Limit()` 方法可以限制查询时 **最多查询多少条记录** ，`Offset()` 方法可以限制查询时 **从第几条记录开始查询**
+`Limit()` 方法可以限制查询时 **最多查询多少条记录** ，`Offset()` 方法可以限制查询时 **从第几条记录开始查询**
 
 例子：
 
@@ -1334,7 +1334,7 @@ res = d.Limit(math.MaxInt32).Offset(3).Find(&users)
 
 #### 11. Group By & Having
 
-描述：
+
 
 1. `Group By` 子句用于将查询结果进行分组 **统计**，通常查询的字段中都包含有聚合函数
 
@@ -1378,7 +1378,7 @@ for rows.Next() {
 
 #### 12. Distinct
 
-描述：Distinct 子句用于查询时去重，可以同时指定多个字段，在查询出来的结果中，如果两条记录中的指定字段都相同，就认为两条记录是相同的，此时数据库只会返回 1 条记录
+Distinct 子句用于查询时去重，可以同时指定多个字段，在查询出来的结果中，如果两条记录中的指定字段都相同，就认为两条记录是相同的，此时数据库只会返回 1 条记录
 
 例子：
 
@@ -1388,7 +1388,7 @@ db.Distinct("name", "age").Order("name, age desc").Find(&results)
 
 #### 13. Joins
 
-描述：连接子句，用于连表查询
+连接子句，用于连表查询
 
 例子：
 
@@ -1399,7 +1399,7 @@ db.Tables("users").Select("users.name, emails.email").Joins("left join emails on
 
 #### 14. Joins 关联临时表
 
-描述：可以先临时构建好临时表的查询语句，再使用 Joins 语句关联查询
+可以先临时构建好临时表的查询语句，再使用 Joins 语句关联查询
 
 例子：
 
@@ -1422,7 +1422,7 @@ db.Model(&Order{}).Joins("join (?) q on order.finished_at = q.latest", query).Sc
 
 #### 15. Scan
 
-描述：`Scan` 类似于 `Find`，都是用于将查询到的数据绑定到结构体上。
+`Scan` 类似于 `Find`，都是用于将查询到的数据绑定到结构体上。
 
 区别：`Find` 只能查询并绑定模型数据，`Scan` 能够绑定到任意的结构体上
 
@@ -1468,7 +1468,7 @@ func main() {
 
 ### 1. 智能查询字段子集
 
-描述：通常情况下，可以通过 `db.Select()` 方法指定要查询某张表的哪些字段。
+通常情况下，可以通过 `db.Select()` 方法指定要查询某张表的哪些字段。
 在 GORM 中，允许定义一个原有模型的子模型，特点是子模型的属性都存在于原有模型中，使用子模型类型的变量去接收原有模型的查询结果时，会智能生成 Select 语句
 
 例子：
@@ -1543,7 +1543,7 @@ db.Clauses(clause.Locking{
 
 ### 3. 子查询
 
-描述：GORM 提供了一种很方便的方式实现子查询，那就是使用 `*gorm.DB` 类型的对象作为查询的参数
+GORM 提供了一种很方便的方式实现子查询，那就是使用 `*gorm.DB` 类型的对象作为查询的参数
 
 例子：
 
@@ -1556,4 +1556,216 @@ db.Where("amount > (?)", db.Table("orders").Select("AVG(amount)")).Find(&orders)
 // SQL: SELECT AVG(age) as avgage FROM `users` GROUP BY `name` HAVING AVG(age) > (SELECT AVG(age) FROM `users` WHERE name LIKE "name%"
 subQuery := db.Select("AVG(age)").Where("name LIKE ?", "name%").Table("users")
 db.Select("AVG(age) as avgage").Group("name").Having("AVG(age) > (?)", subQuery).Find(&results)
+```
+
+#### 3.1 在 FROM 子句中使用子查询
+
+在 FROM 子句中使用子查询，即先使用子查询构建一张临时表，再在这张临时表的基础上继续执行其他查询逻辑
+
+例子：
+
+```go
+// 在 FROM 子句中使用子查询
+// SQL: select * from (select `name`, `age` from `users`) as u where `age` = 18
+db.Table("(?) as u", db.Model(&User{}).Select("name", "age")).Where("age = ?", 18).Find(&User{})
+
+// 在 FROM 子句中合并多个子查询
+// SQL: select * from (select `name` from `users`) as u, (select `name` from `pets`) as p
+subQuery1 := db.Model(&User{}).Select("name")
+subQuery2 := db.Model(&Pet{}).Select("name")
+db.Table("(?) as u, (?) as p", subQuery1, subQuery2).Find(&User{})
+```
+
+### 4. 查询条件分组
+
+在 GORM 中，编写复杂的条件 SQL 语句不需要将所有的查询条件都写在一个 `Where()` 方法下，可以将复杂的条件进行分组拆分，编写成更具有可读性和可维护性的代码。
+
+例子：
+
+```go
+// 使用查询条件分组实现一个复杂的 SQL 查询
+// SQL: select * from `pizzas` where (pizza = "pepperoni" and (size = "small" or size = "medium")) or (pizza = "hawaiian" and size = "xlarge")
+db.Where(
+    db.Where("pizza = ?", "pepperoni").Where(db.Where("size = ?", "small").Or("size = ?", "medium")),
+).Or(
+    db.Where("pizza = ?", "hawaiian").Where("size = ?", "xlarge"),
+).Find(&Pizza{})
+```
+
+### 5. 多列的 IN 子句
+
+在 IN 子句中，可以一次性过滤多个字段值。
+
+通常情况下，传递给 IN 子句的是若干个单个字段值组成的数组，比如 id 数组：`id IN (1, 2, 3)`
+
+在 GORM 中，允许在 IN 子句中指定多个字段值数组，看下面的例子：
+
+```go
+// 使用多列的 IN 子句
+// SQL: select * from users where (name, age, role) in (("jinzhu", 18, "admin"), ("jinzhu2", 19, "user"))
+db.Where("(name, age, role) IN ?", [][]interface{{"jinzhu", 18, "admin"}, {"jinzhu2", 19, "user"}}).Find(&users)
+```
+
+### 6. Named 参数
+
+named 参数也是用于构建可读性更好、可维护性更好的查询 SQL。
+
+使用方法就是在 GORM 查询条件中，使用 `sql.NamedArg` 或者是 `map[string]interface{}` 类型构造参数
+
+例子：
+
+```go
+// 使用 sql.NamedArg 作为 named 参数
+// SQL: select * from `users` where name1 = "jinzhu" or name2 = "jinzhu"
+db.Where("name1 = @name or name2 = @name", sql.Named("name", "jinzhu")).Find(&User{})
+
+// 使用 map[string]interface{} 作为 named 参数
+// SQL: select * from `users` where name1 = "jinzhu" or name2 = "jinzhu" order by `users`.`id` limit 1
+db.Where("name1 = @name or name2 = @name", map[string]interface{}{"name": "jinzhu"}).First(&user)
+```
+
+### 7. 查询结果使用 map 储存
+
+GORM 查询出来的数据结果除了可以直接绑定到实体上之外，还可以绑定到 `map[string]interface{}` 或者 `[]map[string]interface{}` 类型上
+
+在使用这个特性时，要确保调用了 `Model` 或者 `Table` 方法指定要查询数据库中哪一张表。
+
+例子：
+
+```go
+// 使用 Model 指定表，查询第一条记录到 map 中
+// SQL: select * from `users` where id = 1 limit 1
+result := map[string]interface{}
+db.Model(&User{}).First(&result, "id = ?", 1)
+
+// 使用 Table 指定表，查询多条记录到 map 切片中
+// SQL: select * from `users`
+var results []map[string]interface{}
+db.Table("users").Find(&results)
+```
+
+### 8. 查询或者初始化
+
+调用方法：`FirstOrInit()`
+
+通过一定的查询条件去数据库中尝试查询到一条符合条件的记录，如果查询不到，就自动生成一个实体对象，并根据查询条件自动生成初始属性值
+
+这个方法适用于所有的查询条件，包括 `struct` 和 `map`，并且支持更加灵活的 `Attrs` 和 `Assign` 方法
+
+例子：
+
+```go
+// 如果没有用户的 name 字段为 "non_existing"，就初始化一个新的用户对象
+// user -> User{Name: "non_existing"}
+var user User
+db.FirstOrInit(&user, User{Name: "non_existing"})
+
+// 取回一个 name 字段为 "jinzhu" 的用户
+// user -> User{ID: 111, Name: "jinzhu", Age: 18}
+db.Where(User{Name: "jinzhu"}).FirstOrInit(&user)
+
+// 使用 map 指定查询条件
+// user -> User{ID: 111, Name: "jinzhu", Age: 18}
+db.FirstOrInit(&user, map[string]interface{}{"name": "jinzhu"})
+```
+
+#### 8.1 使用 `Attrs` 方法辅助初始化
+
+在调用 `FirstOrInit()` 时，如果查询不到记录，可以使用 `Attrs` 方法在初始化结构体中指定额外的属性。**这些属性只是会被添加到结构体中，并不会被用于 SQL 查询**。
+
+例子：
+
+```go
+// 如果查询不到用户信息，就根据查询条件和指定的属性初始化一个新的用户结构体
+// SQL: select * from `users` where name = 'non_existing' order by id limit 1
+// user -> User{Name: "non_existing", Age: 20}
+db.Where(User{Name: "non_existing"}).Attrs(User{Age: 20}).FirstOrInit(&user)
+
+// 如果成功查询到用户信息，`Attrs` 方法会被忽略
+// SQL: select * from `users` where name = 'jinzhu' order by id limit 1;
+// user -> User{ID: 111, Name: "jinzhu", Age: 18}
+db.Where(User{Name: "jinzhu"}).Attrs(User{Age: 20}).FirstOrInit(&user)
+```
+
+#### 8.2 使用 `Assign` 方法辅助初始化
+
+`Assign` 方法跟 `Attrs` 方法的区别是，无论是否成功查询到数据，都会将 `Assign` 中指定的属性覆盖到最终的结构体上。
+
+同样的，`Assign` 指定的属性不会被构建到最终的 SQL 语句中，更不会被保存到数据库中。
+
+例子：
+
+```go
+// 根据给定的条件和 `Assign` 属性，忽略查询是否成功
+// user -> User{Name: "non_existing", Age: 20}
+db.Where(User{Name: "non_existing"}).Assign(User{Age: 20}).FirstOrInit(&user)
+
+// 即使存在 name 属性为 "jinzhu" 的用户，也仍然将 `Assign` 的属性覆盖到结构体上
+// SQL: select * from `users` where name = 'jinzhu' order by id limit 1;
+// user -> User{ID: 111, Name: "jinzhu", Age: 20}
+db.Where(User{Name: "jinzhu"}).Assign(User{Age: 20}).FirstOrInit(&user)
+```
+
+`FirstOrInit`、`Attrs`、`Assign` 这三个方法提供了一个很灵活的方式去查询一条记录，同时又能一步到位的完成结构体的初始化操作。
+
+### 9. 查询或者创建
+
+调用方法：`FirstOrCreate()`
+
+与 `FirstOrInit` 不同，`FirstOrCreate` 在根据给定条件查询不到数据之后，会自动往数据库中插入一条新记录。
+
+`FirstOrCreate` 同样也适用于 `struct` 和 `map` 条件，可以通过 `RowsAffected` 属性去判断是否创建了新纪录。
+
+例子：
+
+```go
+// 如果查询不到记录，就创建一条新记录
+// SQL: insert into `users` (name) values ("non_existing");
+// user -> User{ID: 112, Name: "non_existing"}
+// result.RowsAffected ==> 1 (新记录被创建)
+result := db.FirstOrCreate(&user, User{Name: "non_existing"})
+
+// 如果查询得到，就不创建新记录
+// user -> User{ID: 111, Name: "jinzhu", Age: 18}
+// result.RowsAffected ==> 0 (没有创建新记录)
+result = db.Where(User{Name: "jinzhu"}).FirstOrCreate(&user)
+```
+
+#### 9.1 使用 `Attrs` 方法辅助创建
+
+使用效果和 `FirstOrInit` 差不多，只不过最终 `Attrs` 指定的属性会被插入到数据库下。
+
+例子：
+
+```go
+// 如果查询不到记录，就创建一条记录，携带指定的属性值
+// SQL: select * from `users` where name = 'non_existing';
+// SQL: insert into `users` (name, age) values ("non_existing", 20)
+// user -> User{ID: 112, Name: "non_existing", Age: 20}
+db.Where(User{Name: "non_existing"}).Attrs(User{Age: 20}).FirstOrCreate(&user)
+
+// 如果查询得到记录，`Attrs` 就会被忽略
+// SQL: select * from `users` where name = 'jinzhu';
+// user -> User{ID: 111, Name: "jinzhu", Age: 18}
+db.Where(User{Name: "jinzhu"}).Attrs(User{Age: 20}).FirstOrCreate(&user)
+```
+
+#### 9.2 使用 `Assign` 方法辅助创建
+
+使用效果和 `FirstOrInit` 差不多，在查询完成之后，不管有没有查询到数据，`Assign` 指定的属性都会被保存到数据库中
+
+例子：
+
+```go
+// 查找不到记录时，使用 `Assign` 指定的属性初始化并创建一条新记录到数据库中
+// SQL: select * from `users` where name = 'non_existing';
+// SQL: insert into `users` (name, age) values ("non_existing", 20);
+// user -> User{ID: 112, Name: "non_existing", Age: 20}
+db.Where(User{Name: "non_existing"}).Assign(User{Age: 20}).FirstOrCreate(&user)
+
+// 如果查询得到记录，就使用 `Assign` 指定的属性更新现有的记录
+// SQL: select * from `users` where name = 'jinzhu';
+// SQL: update `users` set age = 20 where id = 111;
+// user -> User{ID: 111, Name: "jinzhu", Age: 20}
+db.Where(User{Name: "jinzhu"}).Assign(User{Age: 20}).FirstOrCreate(&user)
 ```
