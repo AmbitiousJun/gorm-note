@@ -1769,3 +1769,52 @@ db.Where(User{Name: "non_existing"}).Assign(User{Age: 20}).FirstOrCreate(&user)
 // user -> User{ID: 111, Name: "jinzhu", Age: 20}
 db.Where(User{Name: "jinzhu"}).Assign(User{Age: 20}).FirstOrCreate(&user)
 ```
+
+### 10. 迭代遍历查询结果
+
+调用方法：`Rows()`
+
+迭代遍历可以用于处理一个较大的结果集或者是对每一条查询结果执行独立独立的操作
+
+例子：
+
+```go
+rows, err := db.Model(&User{}).Where("name = ?", "jinzhu").Rows()
+defer rows.Close()
+
+for rows.Next() {
+    var user User
+    // 读取一行数据映射到 user 对象中
+    db.ScanRows(rows, &user)
+    
+    // ... 对 user 对象进行操作
+}
+```
+
+### 11. 批量查询和处理
+
+调用方法：`FindInBatches()`
+
+在处理大量数据时，需要先将数据从数据库查询到内存中，再在内存上对数据进行处理。
+
+GORM 提供的 `FindInBatches()` 允许分批次查询和处理数据，比如总共需要处理 5000 条数据，设定批次大小为 100，那么 GORM 会分 50 次查询数据库，每次查询 100 条到内存中进行处理，处理完成之后再查询下一批数据，节省内存空间。
+
+例子：
+
+```go
+// 每次查询 100 条数据
+result := db.Where("processed = ?", false).FindInBatches(&results, 100, func(tx *gorm.DB, batch int) error {
+    for _, result := range results {
+        // 对查询出来的数据进行操作 ...
+    }
+
+    // 数据处理完成后，重新保存回数据库
+    tx.Save(&results)
+
+    // tx.RowsAffected 可以和 batch 进行比较
+    // 看看当前的保存操作是否都成功了
+
+    // 如果返回错误，则批量查询终止，错误回馈到外层响应结果中
+    return nil
+})
+```
