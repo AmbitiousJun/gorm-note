@@ -1818,3 +1818,154 @@ result := db.Where("processed = ?", false).FindInBatches(&results, 100, func(tx 
     return nil
 })
 ```
+
+### 12. 查询钩子
+
+钩子方法：`AfterFind()`
+
+该钩子通常用于对查询出来的数据进行处理，或者设置默认值
+
+例子：
+
+```go
+func (u *User) AfterFind(tx *gorm.DB) (err error) {
+    // 在查询到用户后执行本地逻辑
+    if u.Role == "" {
+        // 如果用户没有设置角色，就赋值一个默认的角色
+        u.Role = "user"
+    }
+    return
+}
+```
+
+### 13. Pluck 查询单个字段
+
+调用方法：`Pluck()`
+
+该方法专门用于查询 **单字段**，并且将查询结果写入一个切片中
+
+如果想要查询多个字段，需要使用 `Select` 方法配合 `Scan` / `Find` 方法进行查询
+
+例子：
+
+```go
+// 查询所有用户的年龄
+var ages []int64
+db.Model(&User{}).Pluck("age", &ages)
+
+// 查询所有用户的名称
+var names []string
+db.Model(&User{}).Pluck("name", &names)
+
+// 从不同的表中查询名称字段
+db.Table("deleted_users").Pluck("name", &names)
+
+// 结合 `Distinct` 对查询结果进行去重
+// SQL: select distinct `name` from `users`
+db.Model(&User{}).Distinct().Pluck("name", &names)
+
+// 补充：查询多个字段
+db.Select("name", "age").Scan(&users)
+db.Select("name", "age").Find(&users)
+```
+
+### 14. Scopes 作用域
+
+`Scopes` 的作用是将一些通用的数据库查询条件提取成 **可复用的方法**，在进行查询操作时，可以直接使用这些方法作为查询条件，让代码变得更模块化和可读。
+
+#### 14.1 定义 Scopes
+
+scope 是一个函数类型，特点是 **入参和返回值都是 `gorm.DB` 类型**、**函数名称任意**
+
+可以根据业务需求定义若干个 scopes
+
+> 对于需要根据变量才能确定的条件语句，可借助 `函数柯里化` 来定义 scope
+>
+> 详细看代码示例的最后 ↓
+
+例子：
+
+```go
+// 用于查询字段 `amount` 大于 1000 的 scope
+func AmountGreaterThan1000(db *gorm.DB) *gorm.DB {
+    return db.Where("amount > ?", 1000)
+}
+
+// 用于查询使用信用卡购买的订单的 scope
+func PaidWithCreditCard(db *gorm.DB) *gorm.DB {
+    return db.Where("pay_mode_sign = ?", "C")
+}
+
+// 用于查询使用现金支付的订单的 scope
+func PaidWithCod(db *gorm.DB) *gorm.DB {
+    return db.Where("pay_mode_sign = ?", "C")
+}
+
+// 用于根据状态查询订单的 scope
+// 使用函数柯里化的方式，生成一个动态的 scope
+func OrderStatus(status []string) func(db *gorm.DB) *gorm.DB {
+    return func(db *gorm.DB) *gorm.DB {
+        return db.Where("status IN (?)", status)
+    }
+}
+```
+
+#### 14.2 使用已定义的 Scopes
+
+调用方法：`Scopes()`
+
+在该方法中，可以动态地链式指定多个查询条件
+
+```go
+db.Scopes(AmountGreaterThan1000, PaidWithCreditCard).Find(&orders)
+
+db.Scopes(AmountGreaterThan1000, PaidWithCod).Find(&orders)
+
+db.Scopes(AmountGreaterThan1000, OrderStatus([]string{"paid", "shipped"})).Find(&orders)
+```
+
+### 15. Count 计数
+
+该方法可以用于查询数据库中指定条件的记录有多少条
+
+#### 15.1 获取匹配的记录数
+
+提前定义好需要存放记录数的变量，并将其指针传递给 `Count()` 方法获取计数
+
+例子：
+
+```go
+var count int64
+
+// 查询指定名称的用户记录数有多少条
+// SQL: select count(1) from users where name = 'jinzhu' or name = 'jinzhu_2'
+db.Model(&User{}).Where("name = ?", "jinzhu").Or("name = ?", "jinzhu_2").Count(&count)
+
+// 查询指定名称的用户记录数有多少天
+// SQL: select count(1) from users where name = 'jinzhu'
+db.Model(&User{}).Where("name = ?", "jinzhu").Count(&count)
+
+// 查询不同表的数据记录数
+// SQL: select count(1) from deleted_users
+db.Table("deleted_users").Count(&count)
+```
+
+#### 15.2 配合 Distinct 和 Group 进行计数
+
+GORM 允许对去重值和分组结果进行计数
+
+例子：
+
+```go
+// 查询不重复的名称个数
+// SQL: select count(distinct(`name`)) from `users`
+db.Model(&User{}).Distinct("name").Count(&count)
+
+// 通过自定义的 select 语句也能实现计数
+// SQL: select count(distinct(name)) from deleted_users
+db.Table("deleted_users").Select("count(distinct(name))").Count(&count)
+
+// 查询根据名称进行分组后的分组数
+// SQL: select count(name) from (select name from users group by name)
+db.Model(&User{}).Group("name").Count(&count)
+```
